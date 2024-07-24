@@ -1,5 +1,5 @@
 <?php 
-namespace OSW3\Media\DependencyInjection;
+namespace OSW3\Media\Utils;
 
 use Symfony\Component\Yaml\Yaml;
 use Symfony\Component\Filesystem\Path;

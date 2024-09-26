@@ -38,6 +38,7 @@ class Configuration implements ConfigurationInterface
         $builder    = new TreeBuilder( static::NAME );
 
         $definition(new DefinitionConfigurator($builder->getRootNode()));
+        // $definition(new DefinitionConfigurator($builder));
 
 		return $builder;
     }

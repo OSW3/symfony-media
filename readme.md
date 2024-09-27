@@ -30,3 +30,29 @@ return [
 ## How to use
 
 ## How to configure
+
+
+## dependencies
+
+Install deps if you need to process :
+
+Image:
+```shell
+composer require claviska/simpleimage
+```
+
+Audio:
+```shell 
+composer require james-heinrich/getid3
+```
+
+Video:
+```shell 
+composer require php-ffmpeg/php-ffmpeg
+```
+
+PDF:
+```shell 
+composer require setasign/fpdf
+composer require setasign/fpdi
+```

@@ -7,6 +7,7 @@ use OSW3\Media\Enum\Process\ImageActions;
 use OSW3\Media\Enum\Process\PdfActions;
 use OSW3\Media\Enum\Process\VideoActions;
 use OSW3\Media\Enum\Storage\Type as StorageType;
+use Symfony\Component\Filesystem\Path;
 
 return static function($definition)
 {
@@ -94,6 +95,12 @@ return static function($definition)
                         ->defaultValue(NameStrategy::ORIGINAL->value)
                     ->end()
 
+                    ->scalarNode('tempPath')
+                        ->info('Specifies the path of temporary file storage.')
+                        ->cannotBeEmpty()
+                        ->defaultValue(Path::join(__DIR__, '../../', 'temp'))
+                    ->end()
+
                     ->scalarNode('datetimeFormat')
                         ->info('Specifies the format of the datetime of the nameStrategy with value datetime.')
                         ->cannotBeEmpty()
@@ -125,6 +132,7 @@ return static function($definition)
     $definition->rootNode()->validate()->always(function ($config) {
 
         // Storages Exceptions
+        // --
         array_walk($config['storages'], function($options, $name) {
             switch ($options['type']) {
                 case StorageType::DROPBOX->value: 
@@ -145,12 +153,15 @@ return static function($definition)
         });
 
         // Processing Exceptions
+        // --
         array_walk($config['processing'], function($processes, $name) {
             foreach ($processes as $process) {
                 foreach ($process['filetype'] as $filetype) switch (Type::from($filetype)) {
 
                     case Type::AUDIO:
                     case Type::AUDIO_MPEG:
+
+                        // Todo: Dependency Audio 
 
                         // Filetype Actions Exception
                         if (!in_array($process['action'], AudioActions::toArray())) {
@@ -187,12 +198,17 @@ return static function($definition)
                         if (!empty($invalidOptions)) {
                             throw new \Exception(sprintf("Options \"%s\" is/are not valid for \"%s\" action (filetype: %s) in the processing \"%s\"", implode(', ', $invalidOptions), $process['action'], $filetype, $name));
                         }
+
                     break;
 
                     case Type::IMAGE:
                     case Type::IMAGE_JPEG:
                     case Type::IMAGE_JPG:
                     case Type::IMAGE_PNG:
+
+                        if (!class_exists("\claviska\SimpleImage")) {
+                            throw new \Exception(sprintf("claviska/simpleimage is required to execute image process.\n\ncomposer require claviska/simpleimage\n\n"));
+                        }
 
                         // Filetype Actions Exception
                         if (!in_array($process['action'], ImageActions::toArray())) {
@@ -241,10 +257,13 @@ return static function($definition)
                         if (!empty($invalidOptions)) {
                             throw new \Exception(sprintf("Options \"%s\" is/are not valid for \"%s\" action (filetype: %s) in the processing \"%s\"", implode(', ', $invalidOptions), $process['action'], $filetype, $name));
                         }
+
                     break;
 
                     case Type::PDF:
                     case Type::APPLICATION_PDF:
+
+                        // Todo: Dependency PDF 
 
                         // Filetype Actions Exception
                         if (!in_array($process['action'], PdfActions::toArray())) {
@@ -298,6 +317,8 @@ return static function($definition)
 
                     case Type::VIDEO:
                     case Type::VIDEO_MP4:
+
+                        // Todo: Dependency Video 
 
                         // Filetype Actions Exception
                         if (!in_array($process['action'], VideoActions::toArray())) {
@@ -353,6 +374,7 @@ return static function($definition)
         });
 
         // Providers Exceptions
+        // --
         array_walk($config['providers'], function($options, $name) use ($config) {
             foreach ($options['storages'] as $storage) {
                 if (!isset($config['storages'][$storage])) {

@@ -17,5 +17,7 @@
             "OSW3\\Media\\": "src/"
         }
     },
-    "require": {}
+    "require": {
+        "osw3/php-cloud-manager": "*"
+    }
 }

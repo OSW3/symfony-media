@@ -9,6 +9,7 @@ enum NameStrategy: string
 
     case ORIGINAL = 'original';
     case MD5      = 'md5';
-    case UNIQID   = 'uniqid';
+    case UNIQUE   = 'unique';
     case DATETIME = 'datetime';
+    case RANDOM   = 'random';
 }

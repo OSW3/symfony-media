@@ -104,16 +104,18 @@ final class MediaManager
         // Temp File
         // --
 
-        // Temp filename
-        $temp_filename = Path::join($tempPath, $media_name);
+        // // Temp filename
+        // $temp_filename = Path::join($tempPath, $media_name);
 
-        // Create temp dir
-        $this->filesystem->mkdir($tempPath);
+        // // Create temp dir
+        // $this->filesystem->mkdir($tempPath);
 
-        // Move uploaded file to temp directory
-        copy($file->getPathname(), $temp_filename);
+        // // Move uploaded file to temp directory
+        // copy($file->getPathname(), $temp_filename);
 
 
+        dump( $file->getPath() );
+        dump( $file->getPathname() );
 
         // Process
         // --
@@ -128,6 +130,9 @@ final class MediaManager
 
         foreach ($processes as $processKey => $process) {
             
+            // $action = $process['action'];
+            // $mode = $process['mode'];
+
             // Generate Media Filename
             $media_filename = $this->generateMediaFilename($media_name, $media_extension, $process);
             // dump($media_filename);
@@ -186,7 +191,7 @@ final class MediaManager
         // dump($processes);
         // dump($filteredData);
 
-        unlink($temp_filename);
+        // unlink($temp_filename);
     }
 
     private function random($length = 10) {

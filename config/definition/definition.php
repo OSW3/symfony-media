@@ -101,11 +101,11 @@ return static function($definition)
                         ->defaultValue(NameStrategy::ORIGINAL->value)
                     ->end()
 
-                    // ->scalarNode('tempPath')
-                    //     ->info('Specifies the path of temporary file storage.')
-                    //     ->cannotBeEmpty()
-                    //     ->defaultValue(Path::join(__DIR__, '../../', 'temp'))
-                    // ->end()
+                    ->scalarNode('tempPath')
+                        ->info('Specifies the path of temporary file storage.')
+                        ->cannotBeEmpty()
+                        ->defaultValue(Path::join(__DIR__, '../../', 'temp'))
+                    ->end()
 
                     ->scalarNode('datetimeFormat')
                         ->info('Specifies the format of the datetime of the nameStrategy with value datetime.')
@@ -157,6 +157,20 @@ return static function($definition)
                 break;
             }
         });
+
+
+        // array_walk($config['storages'], function(&$options, $name) {
+        //     if ($options['type'] === StorageType::LOCAL->value) {
+        //         $options['targetPath'] = Path::join("xxxx", $options['targetPath']);
+        //     }
+        // });
+        // foreach ($config['storages'] as $key => $options) {
+        //     if ($options['type'] === StorageType::LOCAL->value) {
+        //         $config['storages'][$key]['targetPath'] = "xxxx/" . $options['targetPath'];
+        //     }
+        // }
+        
+        
 
         // Processing Exceptions
         // --

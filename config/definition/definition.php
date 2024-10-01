@@ -45,6 +45,11 @@ return static function($definition)
                         ->defaultNull()
                     ->end()
 
+                    ->scalarNode('permissions')
+                        ->info('Specifies the permissions applied to media files.')
+                        ->defaultNull()
+                    ->end()
+
                 ->end()
             ->end() // end storage name
         ->end() // end: storages
@@ -94,6 +99,28 @@ return static function($definition)
             ->useAttributeAsKey('provider') // provider name
             ->arrayPrototype() 
                 ->children()
+
+                    ->arrayNode('entity')
+                        ->addDefaultsIfNotSet()
+                        ->children()
+
+                            ->scalarNode('class')
+                                ->info('Specifies the entity class used to store medias data.')
+                                ->defaultNull()
+                            ->end()
+
+                            ->booleanNode('unique')
+                                ->info('Specifies whether the media must be unique in the database.')
+                                ->defaultTrue()
+                            ->end() 
+                            
+                            ->booleanNode('update')
+                                ->info('Specifies whether the media should be updated when it is unique in the database.')
+                                ->defaultFalse()
+                            ->end() 
+
+                        ->end()
+                    ->end()
 
                     ->enumNode('nameStrategy')
                         ->info('Specifies the naming strategy for the target files.')

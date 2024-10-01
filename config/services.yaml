@@ -8,3 +8,7 @@ services:
         resource: '../src/'
         exclude:
             - '../src/DependencyInjection/'
+
+    OSW3\Media\EventListener\MediaAliasesListener:
+        tags:
+            - { name: doctrine.event_listener, event: postLoad }

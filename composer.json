@@ -18,6 +18,7 @@
         }
     },
     "require": {
-        "osw3/php-cloud-manager": "*"
+        "osw3/php-cloud-manager": "*",
+        "ramsey/uuid-doctrine": "*"
     }
 }

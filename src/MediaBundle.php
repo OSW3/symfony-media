@@ -9,6 +9,12 @@ class MediaBundle extends Bundle
 {
     public function build(ContainerBuilder $container): void
     {
-        (new Configuration)->generateProjectConfig($container->getParameter('kernel.project_dir'));
+        $projectDir = $container->getParameter('kernel.project_dir');
+
+
+        // Generate the YAML bundle configuration file in the project
+        // --
+        
+        (new Configuration)->generateProjectConfig($projectDir);
     }
 }

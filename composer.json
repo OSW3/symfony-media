@@ -19,6 +19,9 @@
     },
     "require": {
         "osw3/php-cloud-manager": "*",
-        "ramsey/uuid-doctrine": "*"
+        "ramsey/uuid-doctrine": "*",
+        "symfony/options-resolver": "*",
+        "symfony/twig-bundle": "*",
+        "symfony/ux-twig-component": "*"
     }
 }

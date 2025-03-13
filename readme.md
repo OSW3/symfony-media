@@ -56,3 +56,39 @@ PDF:
 composer require setasign/fpdf
 composer require setasign/fpdi
 ```
+
+
+
+
+
+
+
+Create Entity
+
+```shell 
+bin/console make:entity Media
+```
+
+Valid the entity without properties and replace Entity class
+
+```php 
+use OSW3\Media\Trait\Entity\MediaTrait;
+
+#[ORM\Entity(repositoryClass: MediaRepository::class)]
+class Media
+{
+    use MediaTrait;
+}
+```
+
+
+
+
+```yaml 
+#config/package/twig_component.yaml
+twig_component:
+    defaults:
+        OSW3\Media\Components\: '@Media/'
+```
+
+

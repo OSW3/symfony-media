@@ -1,131 +1,195 @@
 <?php 
 namespace OSW3\Media\Manager;
 
-use Symfony\Component\Form\Form;
-use Symfony\Component\Filesystem\Filesystem;
+// use Symfony\Component\Form\Form;
+use OSW3\Media\Utils\StringUtils;
+// use Symfony\Component\Filesystem\Filesystem;
+use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\DependencyInjection\ContainerInterface;
+// use Symfony\Component\Filesystem\Path;
 
 final class MediaManager
 {
     public function __construct(
-        #[Autowire(service: 'service_container')] private ContainerInterface $container,
-        private Filesystem $filesystem,
+        #[Autowire(service: 'service_container')] 
+        private ContainerInterface $container,
+        // private Filesystem $filesystem,
         private EntityManager $entityManager,
         private ProviderManager $providerManager,
         private StorageManager $storageManager,
         private ProcessManager $processManager,
     ){}
 
-
-    public function upload(Form $form, string $widget, string $provider): ?object
+    private function source(UploadedFile $file): object
     {
-        // Exit if widget is not submitted or is null
-        if (!isset($form[$widget]) || $form[$widget]->getData() === null) {
+        $filename  = $file->getClientOriginalName();
+        $basename  = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
+        $mimetype  = $file->getClientMimeType();
+        $extension = $file->getClientOriginalExtension();
+        $size      = $file->getSize();
+        $md5       = file_exists($file->getPathname()) ? md5_file($file->getPathname()) : null;
+        $type      = $this->extractMimeType($file->getClientMimeType());
+
+        return (object) [
+            'filename'  => $filename,
+            'basename'  => $basename,
+            'mimetype'  => $mimetype,
+            'extension' => $extension,
+            'size'      => $size,
+            'md5'       => $md5,
+            'type'      => $type,
+        ];
+    }
+
+    private function temp(UploadedFile $file): object 
+    {
+        $path     = $file->getPath();
+        $pathname = $file->getPathname();
+        $filename = $file->getFilename();
+        $basename = $file->getBasename();
+
+        return (object) [
+            'path'     => $path,
+            'pathname' => $pathname,
+            'filename' => $filename,
+            'basename' => $basename,
+        ];
+    }
+
+    private function provider(string $name): object 
+    {
+        $provider = $this->providerManager->get($name);
+
+        $entity                 = $provider['entity'];
+        $allowDelete            = $provider['allow_delete'];
+        $allowUpdate            = $provider['allow_update'];
+        $filenameStrategy       = $provider['filename']['strategy'];
+        $filenamePrefix         = $provider['filename']['prefix'];
+        $filenameSuffix         = $provider['filename']['suffix'];
+        $filenameDatetimeFormat = $provider['filename']['datetimeFormat'];
+        $filenameLength         = $provider['filename']['length'];
+        // $storages               = $provider['storages'];
+        $temp                   = $provider['temp'];
+
+        // Replace Storage & Processes reference with their config
+        // array_walk($storages, fn(&$storage) => $storage = $this->storageManager->get($storage));
+
+        return (object) [
+            'entity'                 => $entity,
+            'allowDelete'            => $allowDelete,
+            'allowUpdate'            => $allowUpdate,
+            'filenameStrategy'       => $filenameStrategy,
+            'filenamePrefix'         => $filenamePrefix,
+            'filenameSuffix'         => $filenameSuffix,
+            'filenameDatetimeFormat' => $filenameDatetimeFormat,
+            'filenameLength'         => $filenameLength,
+            // 'storages'               => $storages,
+            'temp'                   => $temp,
+        ];
+    }
+
+    private function destination(object $source, object $provider): object 
+    {
+        $basename  = $this->generateMediaBasename(
+            strategy      : $provider->filenameStrategy,
+            md5           : $source->md5,
+            original      : $source->basename,
+            datetimeFormat: $provider->filenameDatetimeFormat
+        );
+        $filename  = "{$basename}.{$source->extension}";
+        $mimetype  = $source->mimetype;
+        $extension = $source->extension;
+
+        return (object) [
+            'basename'  => $basename,
+            'filename'  => $filename,
+            'mimetype'  => $mimetype,
+            'extension' => $extension,
+        ];
+    }
+
+    private function presets(string $name, object $source): array 
+    {
+        $provider = $this->providerManager->get($name);
+        $presets  = $provider['presets'];
+
+        return $presets;
+    }
+
+    private function storages(string $name): array 
+    {
+        $provider = $this->providerManager->get($name);
+        $storages = $provider['storages'];
+        
+        array_walk($storages, fn(&$storage) => $storage = $this->storageManager->get($storage));
+
+        return $storages;
+    }
+
+    // public function upload(Form $form, string $widget, string $providerName): ?object
+    public function upload(UploadedFile $file, string $providerName): ?object
+    {
+        // Exit if the provider is not defined
+        if (!$this->providerManager->has($providerName)) {
             return null;
         }
-
         
-        $media = [];
+        $source               = $this->source($file);
+        $temp                 = $this->temp($file);
+        $provider             = $this->provider($providerName);
+        $destination          = $this->destination($source, $provider);
+        $presets              = $this->presets($providerName, $source);
+        $storages             = $this->storages($providerName);
+
+        $media                = [];
+        $media['source']      = $source;
+        $media['temp']        = $temp;
+        $media['provider']    = $provider;
+        $media['destination'] = $destination;
+        $media['presets']     = $presets;
+        $media['storages']    = $storages;
 
 
-        // Retrieve config & data
-        // --
+        // Move file from "upload dir" to "temp dir"
 
-        // Retrieve uploaded file
-        $file           = $form[$widget]->getData();
+        // $originFile = $temp->pathname;
+        // $targetFile = Path::join($provider->temp, $source->filename);
 
-        // Retrieve bundle config
-        $provider_options = $this->providerManager->get($provider);
-        $nameStrategy     = $provider_options['nameStrategy'];
-        $datetimeFormat   = $provider_options['datetimeFormat'];
-        $storages         = $provider_options['storages'];
-        $processes        = $provider_options['processes'];
-        $tempPath         = $provider_options['tempPath'];
-        
-        // Replace Storage & Processes reference with their config
-        array_walk($storages, fn(&$storage) => $storage = $this->storageManager->get($storage));
-        array_walk($processes, fn(&$process) => $process = $this->processManager->get($process));
+        // dump($originFile);
+        // dump($targetFile);
+        // $this->filesystem->copy($originFile, $targetFile);
 
-        $media['provider'] = $provider;
-        $media['tempPath'] = $tempPath;
-
-
-        // Parse the uploaded file
-        // --
-
-        // Original source file
-        $source_filename  = $file->getClientOriginalName();
-        $source_basename  = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
-        $source_mimetype  = $file->getClientMimeType();
-        $source_extension = $file->getClientOriginalExtension();
-        $source_size      = $file->getSize();
-        $source_md5       = file_exists($file->getPathname()) ? md5_file($file->getPathname()) : null;
-        $source_type      = $this->extractMimeType($file->getClientMimeType());
-
-        $media['source']              = [];
-        $media['source']['filename']  = $source_filename;
-        $media['source']['basename']  = $source_basename;
-        $media['source']['mimetype']  = $source_mimetype;
-        $media['source']['extension'] = $source_extension;
-        $media['source']['size']      = $source_size;
-        $media['source']['md5']       = $source_md5;
-        $media['source']['type']      = $source_type;
-
-        
-        // Uploaded file
-        $file_path     = $file->getPath();
-        $file_pathname = $file->getPathname();
-        $file_filename = $file->getFilename();
-        $file_basename = $file->getBasename();
-
-        $media['file']             = [];
-        $media['file']['path']     = $file_path;
-        $media['file']['pathname'] = $file_pathname;
-        $media['file']['filename'] = $file_filename;
-        $media['file']['basename'] = $file_basename;
-
-
-
-        // Media names
-        // --
-
-        $media_mimetype  = $source_mimetype;
-        $media_extension = $source_extension;
-        $media_basename  = $this->generateMediaBasename(
-            strategy      : $nameStrategy,
-            md5           : $source_md5,
-            original      : $source_basename,
-            datetimeFormat: $datetimeFormat
-        );
-        $media_filename  = "{$media_basename}.{$media_extension}";
-
-        $media['media']              = [];
-        $media['media']['basename']  = $media_basename;
-        $media['media']['filename']  = $media_filename;
-        $media['media']['mimetype']  = $media_mimetype;
-        $media['media']['extension'] = $media_extension;
 
 
         // Process
         // --
+        // Convert and manipulate file
 
-        // Find process by file type
-        $processes = array_merge(...$processes);
-        $processes = array_filter($processes, fn($process) => !!array_intersect([
-            $source_type, 
-            $source_mimetype
-        ], $process['filetype']));
+        $this->processManager
+            ->prepare($media)
+            ->execute($presets, $media)
+        ;
+        
+        dd($media);
 
-        // Prepare processes (add process to $media)
-        $media['processes'] = $this->processManager->prepare($processes, $source_type, $media);
+
 
         // Build aliases array
-        $media['aliases'] = $this->processManager->aliases($processes, $source_type, $media);
+        $media['aliases']   = $this->processManager->aliases(
+                                processes: $processes,
+                                filetype : $source->type,
+                                options  : $media
+                            );
         $media['aliases'] = array_filter($media['aliases'], fn($alias) => !!$alias);
 
         // Execute processes
-        $this->processManager->execute($media['processes'], $source_type);
+        $this->processManager->execute($media['processes'], $source->type);
+
+
+
+
+
 
 
         // Storages
@@ -139,7 +203,11 @@ final class MediaManager
 
 
         // Clear Temp directory
-        $this->clearDirectory($tempPath);
+        $this->clearDirectory($provider->temp);
+
+        dd($media);
+
+
 
 
 
@@ -149,17 +217,6 @@ final class MediaManager
         return $this->entityManager->save($provider, $media);
     }
 
-    private function random($length = 10) {
-        $characters = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
-        $charactersLength = strlen($characters);
-        $randomString = '';
-    
-        for ($i = 0; $i < $length; $i++) {
-            $randomString .= $characters[rand(0, $charactersLength - 1)];
-        }
-    
-        return $randomString;
-    }
 
     private function extractMimeType(string $mimeType): ?string 
     {
@@ -172,7 +229,7 @@ final class MediaManager
         return match($strategy) {
             'datetime' => date($datetimeFormat),
             'md5'      => $md5,
-            'random'   => $this->random(),
+            'random'   => StringUtils::random( /* filename.length */),
             'uniqid'   => uniqid(),
             default    => $original,
         };

@@ -63,6 +63,9 @@ composer require setasign/fpdi
 
 
 
+
+
+
 Create Entity
 
 ```shell 
@@ -92,3 +95,23 @@ twig_component:
 ```
 
 
+
+
+PROCESSOR: 
+Deinir la classe du processor dans la partie presets de config.yaml
+
+Ajouter la classe au service
+
+```yaml
+service:    
+    # App\Processor\TestProcessor:
+    #     autowire: true
+    #     autoconfigure: true
+    #     public: true
+    App\Processor\:
+        resource: '../src/Processor/'
+        autowire: true
+        autoconfigure: true
+        public: true
+        # tags: ['app.processor']
+```

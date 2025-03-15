@@ -10,15 +10,20 @@ final class ProviderManager
     private array $providers;
 
     public function __construct(
-        #[Autowire(service: 'service_container')] private ContainerInterface $container,
+        #[Autowire(service: 'service_container')] 
+        private ContainerInterface $container,
     ){
-        $config = $container->getParameter(Configuration::NAME);
-        $this->providers = $config['providers'];
+        $this->providers = $container->getParameter(Configuration::NAME)['providers'];
     }
 
     public function getAll(): array
     {
         return $this->providers;
+    }
+
+    public function has(string $provider): bool
+    {
+        return isset($this->providers[$provider]);
     }
 
     public function get(string $provider): array

@@ -15,11 +15,11 @@ final class StorageManager
     private array $storages;
 
     public function __construct(
-        #[Autowire(service: 'service_container')] private ContainerInterface $container,
+        #[Autowire(service: 'service_container')] 
+        private ContainerInterface $container,
         private Filesystem $filesystem,
     ){
-        $config = $container->getParameter(Configuration::NAME);
-        $this->storages = $config['storages'];
+        $this->storages = $container->getParameter(Configuration::NAME)['storages'];
     }
 
     public function getAll(): array

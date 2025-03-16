@@ -34,9 +34,9 @@ return function (): ArrayNodeDefinition {
                 ->variablePrototype()->end()
             ->end()
 
-            ->booleanNode('sync')
+            ->integerNode('delay')
                 ->info("Specifies whether the process is synchronous to the request. You can create a cron job if false")
-                ->defaultTrue()
+                ->defaultNull()
             ->end()
 
         ->end()->end();

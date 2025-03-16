@@ -3,7 +3,7 @@ namespace OSW3\Media\Manager;
 
 // use Symfony\Component\Form\Form;
 use OSW3\Media\Utils\StringUtils;
-// use Symfony\Component\Filesystem\Filesystem;
+use Symfony\Component\Filesystem\Filesystem;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\DependencyInjection\ContainerInterface;
@@ -11,10 +11,12 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
 
 final class MediaManager
 {
+    private array $m = ['tt' => "zz"];
+
     public function __construct(
         #[Autowire(service: 'service_container')] 
         private ContainerInterface $container,
-        // private Filesystem $filesystem,
+        private Filesystem $filesystem,
         private EntityManager $entityManager,
         private ProviderManager $providerManager,
         private StorageManager $storageManager,
@@ -89,24 +91,17 @@ final class MediaManager
         ];
     }
 
-    private function destination(object $source, object $provider): object 
+    private function aliases(object $source, object $provider): array 
     {
-        $basename  = $this->generateMediaBasename(
-            strategy      : $provider->filenameStrategy,
-            md5           : $source->md5,
-            original      : $source->basename,
-            datetimeFormat: $provider->filenameDatetimeFormat
-        );
-        $filename  = "{$basename}.{$source->extension}";
-        $mimetype  = $source->mimetype;
-        $extension = $source->extension;
+        $basename = match($provider->filenameStrategy) {
+            'datetime' => date($provider->filenameDatetimeFormat),
+            'md5'      => $source->md5,
+            'random'   => StringUtils::random($provider->length),
+            'uniqid'   => uniqid(),
+            default    => $source->basename,
+        };
 
-        return (object) [
-            'basename'  => $basename,
-            'filename'  => $filename,
-            'mimetype'  => $mimetype,
-            'extension' => $extension,
-        ];
+        return ['original' => $basename];
     }
 
     private function presets(string $name, object $source): array 
@@ -135,59 +130,36 @@ final class MediaManager
             return null;
         }
         
-        $source               = $this->source($file);
-        $temp                 = $this->temp($file);
-        $provider             = $this->provider($providerName);
-        $destination          = $this->destination($source, $provider);
-        $presets              = $this->presets($providerName, $source);
-        $storages             = $this->storages($providerName);
+        $source            = $this->source($file);
+        $temp              = $this->temp($file);
+        $provider          = $this->provider($providerName);
+        $aliases           = $this->aliases($source, $provider);
+        $presets           = $this->presets($providerName, $source);
+        $storages          = $this->storages($providerName);
 
-        $media                = [];
-        $media['source']      = $source;
-        $media['temp']        = $temp;
-        $media['provider']    = $provider;
-        $media['destination'] = $destination;
-        $media['presets']     = $presets;
-        $media['storages']    = $storages;
-
-
-        // Move file from "upload dir" to "temp dir"
-
-        // $originFile = $temp->pathname;
-        // $targetFile = Path::join($provider->temp, $source->filename);
-
-        // dump($originFile);
-        // dump($targetFile);
-        // $this->filesystem->copy($originFile, $targetFile);
+        $media             = [];
+        $media['source']   = $source;
+        $media['temp']     = $temp;
+        $media['provider'] = $provider;
+        $media['aliases']  = $aliases;
+        $media['presets']  = $presets;
+        $media['storages'] = $storages;
 
 
 
         // Process
         // --
-        // Convert and manipulate file
 
-        $this->processManager
-            ->prepare($media)
-            ->execute($presets, $media)
-        ;
+        // Move upload to temp directory
+        $this->processManager->prepare($media);
+
+        // Apply presets
+        $this->processManager->execute($presets, $media);
+
+        // Update aliases list
+        $media['aliases'] = array_merge($media['aliases'], $this->processManager->getAliases());
         
-        dd($media);
-
-
-
-        // Build aliases array
-        $media['aliases']   = $this->processManager->aliases(
-                                processes: $processes,
-                                filetype : $source->type,
-                                options  : $media
-                            );
-        $media['aliases'] = array_filter($media['aliases'], fn($alias) => !!$alias);
-
-        // Execute processes
-        $this->processManager->execute($media['processes'], $source->type);
-
-
-
+        dd('"""');
 
 
 
@@ -224,16 +196,16 @@ final class MediaManager
         return $parts[0] ?? null;
     }
     
-    private function generateMediaBasename(string $original, string $strategy, string $md5, string $datetimeFormat): string
-    {
-        return match($strategy) {
-            'datetime' => date($datetimeFormat),
-            'md5'      => $md5,
-            'random'   => StringUtils::random( /* filename.length */),
-            'uniqid'   => uniqid(),
-            default    => $original,
-        };
-    }
+    // private function generateMediaBasename(string $original, string $strategy, string $md5, string $datetimeFormat): string
+    // {
+    //     return match($strategy) {
+    //         'datetime' => date($datetimeFormat),
+    //         'md5'      => $md5,
+    //         'random'   => StringUtils::random( /* filename.length */),
+    //         'uniqid'   => uniqid(),
+    //         default    => $original,
+    //     };
+    // }
 
     private function clearDirectory(string $directoryPath)
     {

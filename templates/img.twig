@@ -1,0 +1,11 @@
+{% extends '@Media/img.html' %}
+
+{% set _attr = _attr|default({}) %}
+{% set _attr = _attr|merge(_attr, {id: id|default()}) %}
+{% set _attr = _attr|merge(_attr, {class: class|default()}) %}
+{% set _attr = _attr|merge(_attr, {rel: rel|default()}) %}
+{% set _attr = _attr|merge(_attr, {style: style|default()}) %}
+{% set _attr = _attr|merge(_attr, {src: src|default()}) %}
+{% set _attr = _attr|merge(_attr, {srcset: srcset|default()}) %}
+{% set _attr = _attr|merge(_attr, {sizes: sizes|default()}) %}
+{% set _attr = _attr|merge(_attr, {alt: alt|default()}) %}

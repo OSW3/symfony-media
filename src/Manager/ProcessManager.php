@@ -11,6 +11,8 @@ final class ProcessManager
 {
     private array $processes;
     private array $aliases = [];
+    private array $presets = [];
+    private array $media = [];
 
     public function __construct(
         #[Autowire(service: 'service_container')] 
@@ -19,14 +21,15 @@ final class ProcessManager
     ){
         $this->processes = $container->getParameter(Configuration::NAME)['presets'];
     }
-
     
     public function prepare(array &$media): static
     {
         // Move uploaded file to the temp dir
+        // --
+
         $path       = $media['provider']->temp;
         $extension  = $media['source']->extension;
-        $basename   = $media['aliases']['original'];
+        $basename   = $media['basename'];
         $filename   = "{$basename}.{$extension}";
         $pathname   = Path::join($media['provider']->temp, $filename);
 
@@ -41,13 +44,23 @@ final class ProcessManager
             ];
         }
 
+
+        // Retrieve presets settings from preset names
+        // --
+
+        array_walk($media['presets'], fn(&$preset) => $preset = $this->processes[$preset]);
+
+        $this->media = $media;
+        $this->presets = $media['presets'];
+
         return $this;
     }
 
-    public function execute(array $presets, array &$media)
+    public function execute()
     {
-        // Retrieve presets settings from presets names
-        array_walk($presets, fn(&$preset) => $preset = $this->processes[$preset]);
+        // Retrieve presets settings from preset names
+        $presets = $this->presets;
+        $media = $this->media;
 
         // Sanitize presets, exclude presets if filetype not match
         $presets = array_filter($presets, fn($preset) => !!array_intersect([

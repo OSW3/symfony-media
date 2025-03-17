@@ -19,6 +19,11 @@ return function (): ArrayNodeDefinition {
                 ->isRequired()
             ->end()
 
+            ->booleanNode('unique')
+                ->info('Specifies whether the media must be unique.')
+                ->defaultTrue()
+            ->end()
+
             ->booleanNode('allow_delete')
                 ->info('Specifies whether the media can be deleted.')
                 ->defaultTrue()

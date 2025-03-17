@@ -12,57 +12,46 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
 final class StorageManager 
 {
     private array $clients = [];
-    private array $storages;
+    private array $config;
+    private array $storages = [];
 
     public function __construct(
         #[Autowire(service: 'service_container')] 
         private ContainerInterface $container,
         private Filesystem $filesystem,
     ){
-        $this->storages = $container->getParameter(Configuration::NAME)['storages'];
-    }
-
-    public function getAll(): array
-    {
-        return $this->storages;
+        $this->config = $container->getParameter(Configuration::NAME)['storages'];
     }
 
     public function get(string $storage): array
     {
-        return $this->storages[$storage];
+        return $this->config[$storage];
     }
 
-    public function prepare(array $storages, array $media): array
+    public function prepare(array $media): static
     {
-        return array_map(function($storage) use ($media) {
+        // Retrieve storages settings from storage names
+        array_walk($media['storages'], fn(&$storage) => $storage = $this->get($storage));
 
-            if ($storage['type'] === Type::LOCAL->value) {
-                $targetPath = Path::join($this->container->get('kernel')->getProjectDir(), $storage['targetPath']);
-                $storage['targetPath'] = $targetPath;
-            }
+        foreach ($media['storages'] as $storage) {
+            $files = [];
 
-            $storage['files'] = [];
-
-            $storage['files']['original'] = [
-                'source' => $media['file']['pathname'],
-                'target' => Path::join($storage['targetPath'], $media['media']['filename'])
-            ];
-
-            foreach ($media['aliases'] as $alias) {
-                $storage['files'][$alias['name']] = [
-                    'source' => Path::join($media['tempPath'], $alias['filename']),
-                    'target' => Path::join($storage['targetPath'], $alias['filename'])
+            foreach ($media['aliases'] as $alias => $filename) {
+                $files[$alias] = [
+                    'source'      => Path::join($media['temp']->path, $filename),
+                    'destination' => Path::join($storage['destination'], $filename)
                 ];
             }
 
-            return $storage;
-
-        }, $storages);
+            $this->storages[] = array_merge($storage, ['files' => $files]);
+        }
+        
+        return $this;
     }
 
-    public function execute(array $storages)
+    public function execute()
     {
-        array_walk($storages, function($storage) {
+        array_walk($this->storages, function($storage) {
             match (Type::from($storage['type'])) {
                 Type::DROPBOX => $this->storageClient_Dropbox($storage),
                 Type::FTP     => $this->storageClient_FTP($storage),
@@ -72,42 +61,28 @@ final class StorageManager
         });
     }
 
-    private function storageClient_Connection(Type $type, $dsn) 
+    private function storageClient_Dropbox(array $storage)
     {
-        if (!isset($this->clients[$type->value])) {
-            $this->clients[$type->value] = new Client($dsn);
-        }
+        $this->clients[Type::DROPBOX->value] = new Client($storage['dsn']);
+        array_walk($storage['files'], fn($s) => $this->clients[Type::DROPBOX->value]->uploadFile($s['source'], $s['target']));
     }
 
-    private function storageClient_Dropbox($storage) 
+    private function storageClient_FTP(array $storage)
     {
-        $dsn   = "dropbox:token://{$storage['token']}";
-        $files = $storage['files'];
-
-        $this->storageClient_Connection(Type::DROPBOX, $dsn);
-
-        array_walk($files, fn($entry) => $this->clients[Type::DROPBOX->value]->uploadFile($entry['source'], $entry['target']));
-    }
-
-    private function storageClient_FTP($storage)
-    {
-        $dsn         = "ftp://{$storage['dsn']}";
-        $files       = $storage['files'];
+        $this->clients[Type::FTP->value] = new Client($storage['dsn']);
         $permissions = $storage['permissions'];
 
-        $this->storageClient_Connection(Type::FTP, $dsn);
-
-        array_walk($files, function($entry) use ($permissions) {
-            $this->clients[Type::FTP->value]->uploadFile($entry['source'], $entry['target']);
+        array_walk($storage['files'], function($s) use ($permissions) 
+        {
+            $this->clients[Type::FTP->value]->uploadFile($s['source'], $s['destination']);
             if ($permissions) {
-                $this->clients[Type::FTP->value]->setPermission($entry['target'], $permissions);
+                $this->clients[Type::FTP->value]->setPermission($s['destination'], $permissions);
             }
         });
     }
 
-    private function storageClient_Local($storage)
+    private function storageClient_Local(array $storage)
     {
-        $files = $storage['files'];
-        array_walk($files, fn($entry) => $this->filesystem->copy($entry['source'], $entry['target']));
+        array_walk($storage['files'], fn($s) => $this->filesystem->copy($s['source'], $s['destination']));
     }
 }

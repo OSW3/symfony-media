@@ -1,18 +1,14 @@
 <?php 
 namespace OSW3\Media\Manager;
 
-// use Symfony\Component\Form\Form;
 use OSW3\Media\Utils\StringUtils;
 use Symfony\Component\Filesystem\Filesystem;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\DependencyInjection\ContainerInterface;
-// use Symfony\Component\Filesystem\Path;
 
 final class MediaManager
 {
-    private array $m = ['tt' => "zz"];
-
     public function __construct(
         #[Autowire(service: 'service_container')] 
         private ContainerInterface $container,
@@ -64,6 +60,7 @@ final class MediaManager
         $provider = $this->providerManager->get($name);
 
         $entity                 = $provider['entity'];
+        $unique                 = $provider['unique'];
         $allowDelete            = $provider['allow_delete'];
         $allowUpdate            = $provider['allow_update'];
         $filenameStrategy       = $provider['filename']['strategy'];
@@ -71,14 +68,12 @@ final class MediaManager
         $filenameSuffix         = $provider['filename']['suffix'];
         $filenameDatetimeFormat = $provider['filename']['datetimeFormat'];
         $filenameLength         = $provider['filename']['length'];
-        // $storages               = $provider['storages'];
         $temp                   = $provider['temp'];
 
-        // Replace Storage & Processes reference with their config
-        // array_walk($storages, fn(&$storage) => $storage = $this->storageManager->get($storage));
-
         return (object) [
+            'name'                   => $name,
             'entity'                 => $entity,
+            'unique'                 => $unique,
             'allowDelete'            => $allowDelete,
             'allowUpdate'            => $allowUpdate,
             'filenameStrategy'       => $filenameStrategy,
@@ -86,7 +81,6 @@ final class MediaManager
             'filenameSuffix'         => $filenameSuffix,
             'filenameDatetimeFormat' => $filenameDatetimeFormat,
             'filenameLength'         => $filenameLength,
-            // 'storages'               => $storages,
             'temp'                   => $temp,
         ];
     }
@@ -96,12 +90,24 @@ final class MediaManager
         $basename = match($provider->filenameStrategy) {
             'datetime' => date($provider->filenameDatetimeFormat),
             'md5'      => $source->md5,
-            'random'   => StringUtils::random($provider->length),
-            'uniqid'   => uniqid(),
+            'random'   => StringUtils::random($provider->filenameLength),
+            'unique'   => uniqid(),
             default    => $source->basename,
         };
+        $filename = "{$basename}.{$source->extension}";
 
-        return ['original' => $basename];
+        return ['original' => $filename];
+    }
+
+    private function basename(object $source, object $provider): string 
+    {
+        return match($provider->filenameStrategy) {
+            'datetime' => date($provider->filenameDatetimeFormat),
+            'md5'      => $source->md5,
+            'random'   => StringUtils::random($provider->filenameLength),
+            'unique'   => uniqid(),
+            default    => $source->basename,
+        };
     }
 
     private function presets(string $name, object $source): array 
@@ -117,8 +123,6 @@ final class MediaManager
         $provider = $this->providerManager->get($name);
         $storages = $provider['storages'];
         
-        array_walk($storages, fn(&$storage) => $storage = $this->storageManager->get($storage));
-
         return $storages;
     }
 
@@ -133,12 +137,14 @@ final class MediaManager
         $source            = $this->source($file);
         $temp              = $this->temp($file);
         $provider          = $this->provider($providerName);
+        $basename          = $this->basename($source, $provider);
         $aliases           = $this->aliases($source, $provider);
         $presets           = $this->presets($providerName, $source);
         $storages          = $this->storages($providerName);
 
         $media             = [];
         $media['source']   = $source;
+        $media['basename'] = $basename;
         $media['temp']     = $temp;
         $media['provider'] = $provider;
         $media['aliases']  = $aliases;
@@ -150,43 +156,39 @@ final class MediaManager
         // Process
         // --
 
-        // Move upload to temp directory
-        $this->processManager->prepare($media);
-
-        // Apply presets
-        $this->processManager->execute($presets, $media);
-
+        $this->processManager
+            ->prepare($media) // Move upload to temp directory
+            ->execute() // Apply presets
+        ;
+        
         // Update aliases list
         $media['aliases'] = array_merge($media['aliases'], $this->processManager->getAliases());
         
-        dd('"""');
-
-
 
 
         // Storages
         // --
-        
-        // Prepare storages
-        $media['storages'] = $this->storageManager->prepare($storages, $media);
 
-        // Execute storages
-        $this->storageManager->execute($media['storages']);
+        $this->storageManager
+            ->prepare($media)
+            ->execute()
+        ;
 
 
         // Clear Temp directory
         $this->clearDirectory($provider->temp);
 
-        dd($media);
+        // dd($media);
 
 
 
 
 
+        // dd('"""');
         // Save Media (entity)
         // --
 
-        return $this->entityManager->save($provider, $media);
+        return $this->entityManager->save( $media );
     }
 
 
@@ -195,17 +197,6 @@ final class MediaManager
         $parts = explode('/', $mimeType, 2);
         return $parts[0] ?? null;
     }
-    
-    // private function generateMediaBasename(string $original, string $strategy, string $md5, string $datetimeFormat): string
-    // {
-    //     return match($strategy) {
-    //         'datetime' => date($datetimeFormat),
-    //         'md5'      => $md5,
-    //         'random'   => StringUtils::random( /* filename.length */),
-    //         'uniqid'   => uniqid(),
-    //         default    => $original,
-    //     };
-    // }
 
     private function clearDirectory(string $directoryPath)
     {

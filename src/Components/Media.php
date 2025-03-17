@@ -13,20 +13,24 @@ use Symfony\UX\TwigComponent\Attribute\AsTwigComponent;
 use Symfony\UX\TwigComponent\Attribute\ExposeInTemplate;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\DependencyInjection\ContainerInterface;
+use Symfony\Component\Filesystem\Path;
 
 #[AsTwigComponent(template: '@Media/media/base.twig')]
 class Media 
 {
     private array $config;
 
-    #[ExposeInTemplate(getter: 'checkEntity')]
-    public $media;
+    #[ExposeInTemplate(getter: 'doNotExpose')]
+    public ?object $media;
 
     #[ExposeInTemplate(getter: 'doNotExpose')]
     public string $storage;
 
     #[ExposeInTemplate(getter: 'doNotExpose')]
-    public ?string $size;
+    public string $alias;
+
+    #[ExposeInTemplate(name: 'src', getter: 'fetchSrc')]
+    public string $src;
 
     public function __construct(
         #[Autowire(service: 'service_container')] private ContainerInterface $container,
@@ -41,65 +45,67 @@ class Media
     public function preMount(array $data): array
     {
         $resolver = new OptionsResolver();
-        $resolver->setIgnoreUndefined(true);
+        $resolver->setIgnoreUndefined(false);
 
-        $resolver->setDefault('storage', null);
-        $resolver->setAllowedTypes('storage', ['string','null']);
+        $resolver->setRequired('media');
+        $resolver->setAllowedTypes('media', ['object']);
 
-        $resolver->setDefault('size', null);
-        $resolver->setAllowedTypes('size', ['string','null']);
+        $resolver->setRequired('storage');
+        $resolver->setAllowedTypes('storage', ['string']);
+
+        $resolver->setRequired('alias');
+        $resolver->setAllowedTypes('alias', ['string']);
 
         return $resolver->resolve($data) + $data;
     }
 
-    #[PostMount]
-    public function postMount()
+    // #[PostMount]
+    public function fetchSrc()
     {
-        $provider = $this->media->getMediaProvider();
-        $provider = $this->providerManager->get($provider);
-        $storages = $provider['storages'];
+        // Retrieve the provider
+        // $provider = $this->media->getMediaProvider();
+        // $provider = $this->providerManager->get($provider);
+        
+        // Retrieve storages list
+        // $storages = $provider['storages'];
 
-        if (!in_array($this->storage, $storages)) {
-            // todo: storage not found -> return place holder media
-            dd("storage not found -> return place holder media");
-        }
+        // Retrieve the storage
+        $storage = $this->storage;
+        $storage = $this->storageManager->get($storage);
 
-        $storage = $this->storageManager->get($this->storage);
-        $publicPath = $storage['publicPath'];
+        $alias = $this->alias;
+        $aliases = $this->media->getMediaAliases();
 
-        // match (Type::from($storage['type'])) {
-        //     Type::DROPBOX => 
-        //     default => true
-        // };
+        $path = Path::join($storage['public'], $aliases[$alias]);
 
-        // dump( $provider );
-        dump( $storage );
-        dump( $publicPath );
-        // dump( $this->storage );
+        return $path;
 
-        dd($this->media);
+        // dump( $path );
+        // dump( $storage );
+        // dd( $this->media );
+
+        // if (!in_array($this->storage, $storages)) {
+        //     // todo: storage not found -> return place holder media
+        //     dd("storage not found -> return place holder media");
+        // }
+
+        // $storage = $this->storageManager->get($this->storage);
+        // $publicPath = $storage['publicPath'];
+
+        // // match (Type::from($storage['type'])) {
+        // //     Type::DROPBOX => 
+        // //     default => true
+        // // };
+
+        // // dump( $provider );
+        // dump( $storage );
+        // dump( $publicPath );
+        // // dump( $this->storage );
+
+        // dd($this->media);
     }
 
     public function doNotExpose(): null {
         return null;
-    }
-
-    /**
-     * Check if Entity exist
-     *
-     * @return void
-     */
-    public function checkEntity(): null
-    {
-        $entity       = $this->media;
-        $metaData     = $this->managerRegistry->getManager()->getMetadataFactory()->getAllMetadata();
-        $isRegistered = !!array_filter($metaData, fn($meta) => get_debug_type($entity) === $meta->getName());
-        
-        if (!$isRegistered) {
-            // Todo: emit new Exception
-            throw new \Exception('Invalid entity');
-        }
-
-        return $this->doNotExpose();
     }
 }

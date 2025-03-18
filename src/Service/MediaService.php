@@ -1,6 +1,7 @@
 <?php
 namespace OSW3\Media\Service;
 
+use OSW3\Media\Enum\Storage\Type;
 use OSW3\Media\Manager\StorageManager;
 use Symfony\Component\Filesystem\Path;
 use Symfony\Component\HttpFoundation\RequestStack;
@@ -22,14 +23,30 @@ class MediaService
         $alias = $options['alias'];
         $aliases = $media->getMediaAliases();
 
-        return Path::join( $storage['public'], $aliases[$alias] );
+        switch ($storage['type'])
+        {
+            case Type::DROPBOX->value:
+                return $aliases[$alias];
+            break;
+
+            default: return file_exists(Path::join( $storage['destination'], $aliases[$alias] ))
+                ? Path::join( $storage['public'], $aliases[$alias] )
+                : Path::join( "/", $storage['defaults']['image'] )
+            ;
+        }
+
     }
 
     public function url(array $options): string 
     {
         $request = $this->requestStack->getCurrentRequest();
+        $path    = $this->path($options);
 
-        return Path::join( $request->getSchemeAndHttpHost(), $this->path($options) );
+        if (str_starts_with($path, "http")) {
+            return $path;
+        }
+
+        return Path::join( $request->getSchemeAndHttpHost(), $path );
     }
 
     public function set(array $options, bool $absolute=false): array 
@@ -50,9 +67,16 @@ class MediaService
         $set = array_filter($set, fn($entry) => isset($aliases[$entry[0]]));
         $lastKey = array_key_last($set);
 
+
         foreach ($set as $key => $entry) 
         {
             [$alias, $width, $size] = array_pad($entry, 3, null);
+
+            if (
+                !file_exists(Path::join( $storage['destination'], $aliases[$alias] )) &&
+                $storage['type'] !== Type::DROPBOX->value
+            ) continue;
+
 
             $filename = $absolute 
                 ? $this->url([
@@ -65,6 +89,7 @@ class MediaService
                     'alias'   => $alias,
                 ])
             ;
+
 
             $srcset[] = sprintf('%s %s', $filename, $width);
 
@@ -84,5 +109,4 @@ class MediaService
             'sizes'  => implode(', ', $sizes)
         ];
     }
-
 }

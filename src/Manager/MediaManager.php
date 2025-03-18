@@ -60,7 +60,6 @@ final class MediaManager
         $provider = $this->providerManager->get($name);
 
         $entity                 = $provider['entity'];
-        $unique                 = $provider['unique'];
         $allowDelete            = $provider['allow_delete'];
         $allowUpdate            = $provider['allow_update'];
         $filenameStrategy       = $provider['filename']['strategy'];
@@ -73,7 +72,6 @@ final class MediaManager
         return (object) [
             'name'                   => $name,
             'entity'                 => $entity,
-            'unique'                 => $unique,
             'allowDelete'            => $allowDelete,
             'allowUpdate'            => $allowUpdate,
             'filenameStrategy'       => $filenameStrategy,
@@ -165,15 +163,18 @@ final class MediaManager
         $media['aliases'] = array_merge($media['aliases'], $this->processManager->getAliases());
         
 
+        
 
         // Storages
         // --
 
-        $this->storageManager
-            ->prepare($media)
-            ->execute()
-        ;
-
+        // $this->storageManager
+        //     ->prepare($media)
+        //     ->execute()
+        // ;
+        // dump($media);
+        $this->storageManager->copy($media);
+        // dd($media);
 
         // Clear Temp directory
         $this->clearDirectory($provider->temp);

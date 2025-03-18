@@ -7,68 +7,61 @@ use Doctrine\ORM\EntityManagerInterface;
 final class EntityManager
 {
     private string $entity;
-    // private bool $allowUpdate;
-    // private bool $allowDelete;
 
     public function __construct(
         private EntityManagerInterface $entityManager,
-        private ProviderManager $providerManager
+        private ProviderManager $providerManager,
+        private StorageManager $storageManager,
     ){}
 
-    // public function save(string $provider, array $media) //: ?object
     public function save(array $media): object
     {
-        $classname   = $media['provider']->entity;
-        $isUnique    = $media['provider']->unique;
-        $allowUpdate = $media['provider']->allowUpdate;
-
-        $originalFileHash  = $media['source']->md5;
-        $originalBasename  = $media['source']->basename;
-        $originalFilename  = $media['source']->filename;
-        $originalMimetype  = $media['source']->mimetype;
-        $originalExtension = $media['source']->extension;
-        $originalSize      = $media['source']->size;
-        $mediaProvider     = $media['provider']->name;
-        $mediaBasename     = $media['temp']->basename;
-        $mediaFilename     = $media['temp']->filename;
-        $mediaAliases      = $media['aliases'];
+        $classname         = $media['provider']->entity;
+        $allowUpdate       = $media['provider']->allowUpdate;
 
         if (!class_exists($classname)) {
             throw new \InvalidArgumentException(sprintf('The entity "%s" does not exist.', $classname));
         }
 
         $repository = $this->entityManager->getRepository($classname);
-        $entity     = $repository->findOneBy(['originalFileHash' => $media['source']->md5]) ?? new $classname;
 
-        $this->setProperty($entity, 'originalFileHash', $originalFileHash);
-        $this->setProperty($entity, 'originalBasename', $originalBasename);
-        $this->setProperty($entity, 'originalFilename', $originalFilename);
-        $this->setProperty($entity, 'originalMimetype', $originalMimetype);
-        $this->setProperty($entity, 'originalExtension', $originalExtension);
-        $this->setProperty($entity, 'originalSize', $originalSize);
-        $this->setProperty($entity, 'mediaProvider', $mediaProvider);
-        $this->setProperty($entity, 'mediaBasename', $mediaBasename);
-        $this->setProperty($entity, 'mediaFilename', $mediaFilename);
-        $this->setProperty($entity, 'mediaAliases', $mediaAliases);
+        $entity = $repository->findOneBy(['originalFileHash' => $media['source']->md5]) ?? new $classname;
+        $clone  = clone($entity);
+        $isNew  = !$entity->getId();
 
-        // New Entity
-        if ($entity->getId() === null) {
+        $this->setProperty($entity, 'originalFileHash', $media['source']->md5);
+        $this->setProperty($entity, 'originalBasename', $media['source']->basename);
+        $this->setProperty($entity, 'originalFilename', $media['source']->filename);
+        $this->setProperty($entity, 'originalMimetype', $media['source']->mimetype);
+        $this->setProperty($entity, 'originalExtension',$media['source']->extension);
+        $this->setProperty($entity, 'originalSize',     $media['source']->size);
+        $this->setProperty($entity, 'mediaProvider',    $media['provider']->name);
+        $this->setProperty($entity, 'mediaBasename',    $media['temp']->basename);
+        $this->setProperty($entity, 'mediaFilename',    $media['temp']->filename);
+        $this->setProperty($entity, 'mediaAliases',     $media['aliases']);
+
+
+        if ($isNew) {
             $this->entityManager->persist($entity);
             $this->entityManager->flush();
             return $entity;
         }
 
-        if ($isUnique && $allowUpdate) {
+        if ($allowUpdate) {
             $this->entityManager->flush();
+            if ($entity->getMediaBasename() !== $clone->getMediaBasename()) {
+                $this->storageManager->removeFromEntity($clone);
+            }
         }
-        
+
         return $entity;
     }
 
     private function setProperty($entity, $property, $value)
     {
-        if (property_exists($entity, $property)) {
-            $setter = "set".ucfirst($property);
+        $setter = "set".ucfirst($property);
+        
+        if (method_exists($entity, $setter)) {
             $entity->$setter($value);
         }
     }

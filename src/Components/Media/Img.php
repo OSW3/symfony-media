@@ -61,7 +61,7 @@ class Img
         $resolver->setDefault('alt', null);
         $resolver->setAllowedTypes('alt', ['string', 'null']);
 
-        $resolver->setRequired('alias');
+        $resolver->setDefault('alias', 'original');
         $resolver->setAllowedTypes('alias', ['string']);
 
         $resolver->setRequired('media');

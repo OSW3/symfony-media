@@ -13,12 +13,13 @@ final class StorageManager
 {
     private array $clients = [];
     private array $config;
-    private array $storages = [];
+    // private array $storages = [];
 
     public function __construct(
         #[Autowire(service: 'service_container')] 
         private ContainerInterface $container,
         private Filesystem $filesystem,
+        private ProviderManager $providerManager,
     ){
         $this->config = $container->getParameter(Configuration::NAME)['storages'];
     }
@@ -28,12 +29,14 @@ final class StorageManager
         return $this->config[$storage];
     }
 
-    public function prepare(array $media): static
+
+
+    public function copy(array &$media): static
     {
         // Retrieve storages settings from storage names
         array_walk($media['storages'], fn(&$storage) => $storage = $this->get($storage));
 
-        foreach ($media['storages'] as $storage) {
+        foreach ($media['storages'] as $key => $storage) {
             $files = [];
 
             foreach ($media['aliases'] as $alias => $filename) {
@@ -43,31 +46,46 @@ final class StorageManager
                 ];
             }
 
-            $this->storages[] = array_merge($storage, ['files' => $files]);
+            // $this->storages[] = array_merge($storage, ['files' => $files]);
+            $media['storages'][$key] = array_merge($storage, ['files' => $files]);
         }
+
+        array_walk($media['storages'], function($storage) use (&$media) {
+            // dump($key);
+            // dump($storage);
+            match (Type::from($storage['type'])) {
+                Type::DROPBOX => $this->copy_Dropbox($storage),
+                Type::FTP     => $this->copy_FTP($storage),
+                Type::LOCAL   => $this->copy_Local($storage),
+                default       => null
+            };
+
+
+            switch ($storage['type']) {
+                case Type::DROPBOX->value:
+                foreach ($media['aliases'] as $alias => $filename) {
+                    $media['aliases'][$alias] = $storage['files'][$alias]['location'];
+                }
+                break;
+            }
+        });
         
         return $this;
     }
 
-    public function execute()
-    {
-        array_walk($this->storages, function($storage) {
-            match (Type::from($storage['type'])) {
-                Type::DROPBOX => $this->storageClient_Dropbox($storage),
-                Type::FTP     => $this->storageClient_FTP($storage),
-                Type::LOCAL   => $this->storageClient_Local($storage),
-                default       => null
-            };
-        });
-    }
-
-    private function storageClient_Dropbox(array $storage)
+    private function copy_Dropbox(array &$storage): void
     {
         $this->clients[Type::DROPBOX->value] = new Client($storage['dsn']);
-        array_walk($storage['files'], fn($s) => $this->clients[Type::DROPBOX->value]->uploadFile($s['source'], $s['target']));
+
+        foreach ($storage['files'] as $key => $file) {
+            $this->clients[Type::DROPBOX->value]->upload($file['source'], $file['destination'], true);
+
+            $location = $this->clients[Type::DROPBOX->value]->link($file['destination']);
+            $storage['files'][$key]['location'] = $location;
+        }
     }
 
-    private function storageClient_FTP(array $storage)
+    private function copy_FTP(array $storage): void
     {
         $this->clients[Type::FTP->value] = new Client($storage['dsn']);
         $permissions = $storage['permissions'];
@@ -81,8 +99,59 @@ final class StorageManager
         });
     }
 
-    private function storageClient_Local(array $storage)
+    private function copy_Local(array $storage): void
     {
         array_walk($storage['files'], fn($s) => $this->filesystem->copy($s['source'], $s['destination']));
+    }
+
+
+
+
+    public function removeFromEntity(object $entity): static
+    {
+        $provider = $entity->getMediaProvider();
+        $provider = $this->providerManager->get($provider);
+
+        $storages = $provider['storages'];
+        array_walk($storages, fn(&$storage) => $storage = $this->get($storage));
+
+        $aliases = $entity->getMediaAliases();
+
+        foreach ($storages as $key => $storage) {
+            $files = [];
+            foreach ($aliases as $alias => $filename) {
+                array_push($files, Path::join($storage['destination'], $filename));
+            }
+
+            $storages[$key] = array_merge($storages[$key], ['files' => $files]);
+        }
+
+        array_walk($storages, function($storage) {
+            match (Type::from($storage['type'])) {
+                Type::DROPBOX => $this->remove_Dropbox($storage),
+                Type::FTP     => $this->remove_FTP($storage),
+                Type::LOCAL   => $this->remove_Local($storage),
+                default       => null
+            };
+        });
+        
+        return $this;
+    }
+
+    public function remove_Dropbox(array $storage): void
+    {
+        // ..
+    }
+    public function remove_FTP(array $storage): void
+    {
+        // ..
+    }
+    public function remove_Local(array $storage): void
+    {
+        foreach ($storage['files'] as $file) {
+            if (file_exists($file)) {
+                unlink($file);
+            }
+        }
     }
 }

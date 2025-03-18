@@ -45,6 +45,16 @@ return function (): ArrayNodeDefinition {
                 ->defaultNull()
             ->end()
 
+            ->arrayNode('defaults')
+                ->info('Specifies the defaults media.')
+                ->addDefaultsIfNotSet()->children()
+                    ->scalarNode('image')->defaultValue('default.jpg')->end()
+                    ->scalarNode('video')->defaultValue('default.mp4')->end()
+                    ->scalarNode('audio')->defaultValue('default.mp3')->end()
+                    ->scalarNode('pdf')->defaultValue('default.pdf')->end()
+                ->end()
+            ->end()
+
         ->end()->end();
 
     return $node;

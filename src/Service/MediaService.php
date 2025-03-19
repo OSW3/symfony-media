@@ -114,7 +114,7 @@ class MediaService
         $set     = $options['set'] ?? [];
         $storage = $options['storage'] ?? '';
         $storage = $this->storageManager->get($storage);
-        
+
         if (!$media || empty($set)) {
             return [];
         }
@@ -125,7 +125,6 @@ class MediaService
         
         $set = array_filter($set, fn($entry) => isset($aliases[$entry[0]]));
         $lastKey = array_key_last($set);
-
 
         foreach ($set as $key => $entry) 
         {

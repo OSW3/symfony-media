@@ -2,6 +2,9 @@
 namespace OSW3\Media\Manager;
 
 use OSW3\Media\Utils\StringUtils;
+use OSW3\Media\Manager\ProcessManager;
+use OSW3\Media\Manager\StorageManager;
+use OSW3\Media\Manager\ProviderManager;
 use Symfony\Component\Filesystem\Filesystem;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;

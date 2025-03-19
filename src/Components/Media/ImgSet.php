@@ -127,7 +127,7 @@ class ImgSet
             'set'     => $this->set,
         ];
         
-        return $this->mediaService->set($options, $this->absolute)['srcset'];
+        return $this->mediaService->set($options, $this->absolute)['srcset'] ?? "";
     }
 
     public function fetchSizes(): string
@@ -138,6 +138,6 @@ class ImgSet
             'set'     => $this->set,
         ];
 
-        return $this->mediaService->set($options, $this->absolute)['sizes'];
+        return $this->mediaService->set($options, $this->absolute)['sizes'] ?? "";
     }
 }

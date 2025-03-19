@@ -20,22 +20,22 @@ class MediaService
         $storage = $options['storage'];
         $storage = $this->storageManager->get($storage);
 
-        $alias = $options['alias'] ?? "original";
 
         if ($media === null) {
             return Path::join( "/", $storage['defaults']['image'] );
         }
 
+        
         $aliases = $media->getMediaAliases();
+        $alias = $options['alias'];
+        $alias = $aliases[$alias] ?? "original";
 
         switch ($storage['type'])
         {
-            case Type::DROPBOX->value:
-                return $aliases[$alias];
-            break;
+            case Type::DROPBOX->value: return $alias; break;
 
-            default: return file_exists(Path::join( $storage['destination'], $aliases[$alias] ))
-                ? Path::join( $storage['public'], $aliases[$alias] )
+            default: return file_exists(Path::join( $storage['destination'], $alias ))
+                ? Path::join( $storage['public'], $alias )
                 : Path::join( "/", $storage['defaults']['image'] )
             ;
         }

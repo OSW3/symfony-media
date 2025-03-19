@@ -32,7 +32,14 @@ class MediaService
         {
             case Type::DROPBOX->value: return $alias; break;
 
-            default: return file_exists(Path::join( $storage['destination'], $alias ))
+            default: 
+                // if () {
+
+                // }
+
+                dump([ $alias, file_exists(Path::join( $storage['destination'], $alias )) ]);
+            
+            return file_exists(Path::join( $storage['destination'], $alias ))
                 ? Path::join( $storage['public'], $alias )
                 : Path::join( "/", $storage['defaults']['image'] )
             ;

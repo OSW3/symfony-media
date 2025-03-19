@@ -133,7 +133,7 @@ class MediaService
 
             if (
                 !file_exists(Path::join( $storage['destination'], $aliases[$alias] )) &&
-                $storage['type'] !== Type::DROPBOX->value
+                $storage['type'] !== StorageType::DROPBOX->value
             ) continue;
 
 

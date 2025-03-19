@@ -21,6 +21,11 @@ class MediaService
         $storage = $this->storageManager->get($storage);
 
         $alias = $options['alias'];
+
+        if ($media === null) {
+            return Path::join( "/", $storage['defaults']['image'] );
+        }
+        
         $aliases = $media->getMediaAliases();
 
         switch ($storage['type'])

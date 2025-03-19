@@ -11,7 +11,7 @@ use Symfony\UX\TwigComponent\Attribute\ExposeInTemplate;
 class ImgSet 
 {
     public bool $absolute;
-    public object $media;
+    public ?object $media;
     public array $set;
     public string $storage;
 
@@ -68,7 +68,8 @@ class ImgSet
         $resolver->setAllowedTypes('alt', ['string', 'null']);
 
         $resolver->setRequired('media');
-        $resolver->setAllowedTypes('media', ['object']);
+        $resolver->setDefault('media', null);
+        $resolver->setAllowedTypes('media', ['object','null']);
 
         $resolver->setRequired('set');
         $resolver->setAllowedTypes('set', ['array']);

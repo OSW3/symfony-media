@@ -12,7 +12,7 @@ class Img
 {
     public bool $absolute;
     public string $alias;
-    public object $media;
+    public ?object $media;
     public string $storage;
 
     #[ExposeInTemplate(name: 'id', getter: 'fetchId')]
@@ -65,7 +65,8 @@ class Img
         $resolver->setAllowedTypes('alias', ['string']);
 
         $resolver->setRequired('media');
-        $resolver->setAllowedTypes('media', ['object']);
+        // $resolver->setDefault('media', null);
+        $resolver->setAllowedTypes('media', ['object','null']);
 
         $resolver->setRequired('storage');
         $resolver->setAllowedTypes('storage', ['string']);

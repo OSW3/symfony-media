@@ -25,7 +25,7 @@ class MediaBundle extends Bundle
             $twig_component_ArrayContent = Yaml::parse($twig_component_YamlContent);
             
             // Search Bundle Components namespace
-            $classPath = "OSW3\\Media\\Components\\";
+            $classPath = __NAMESPACE__."\\Components\\";
             $newClassPath = $classPath;
 
             if (!isset( $twig_component_ArrayContent['twig_component']['defaults'][$newClassPath] ))

@@ -72,10 +72,11 @@ final class ProcessManager
             
             $processor = $preset['processor'];
             $options   = $preset['options'];
-            $delay      = $preset['delay'];
+            $delay     = $preset['delay'];
 
             if (!$this->container->has($processor)) {
-                return;
+                throw new \Exception(sprintf("The processor %s is not found", $processor));
+                // return;
             }
 
             if ($delay <= 0) {

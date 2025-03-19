@@ -1,7 +1,8 @@
 <?php
 namespace OSW3\Media\Service;
 
-use OSW3\Media\Enum\Storage\Type;
+use OSW3\Media\Enum\File\Type as FileType;
+use OSW3\Media\Enum\Storage\Type as StorageType;
 use OSW3\Media\Manager\StorageManager;
 use Symfony\Component\Filesystem\Path;
 use Symfony\Component\HttpFoundation\RequestStack;

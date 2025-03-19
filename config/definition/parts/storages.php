@@ -35,11 +35,6 @@ return function (): ArrayNodeDefinition {
                 ->defaultNull()
             ->end()
 
-            // ->scalarNode('token')
-            //     ->info('Specifies the token of the connection service.')
-            //     ->defaultNull()
-            // ->end()
-
             ->scalarNode('permissions')
                 ->info('Specifies the permissions applied to media files.')
                 ->defaultNull()
@@ -52,6 +47,16 @@ return function (): ArrayNodeDefinition {
                     ->scalarNode('video')->defaultValue('default.mp4')->end()
                     ->scalarNode('audio')->defaultValue('default.mp3')->end()
                     ->scalarNode('pdf')->defaultValue('default.pdf')->end()
+                ->end()
+            ->end()
+
+            ->arrayNode('fallbacks')
+                ->info('Specifies the fallbacks chain.')
+                ->addDefaultsIfNotSet()->children()
+                    ->arrayNode('image')->defaultValue(['default'])->end()
+                    ->arrayNode('video')->defaultValue(['default'])->end()
+                    ->arrayNode('audio')->defaultValue(['default'])->end()
+                    ->arrayNode('pdf')->defaultValue(['default'])->end()
                 ->end()
             ->end()
 

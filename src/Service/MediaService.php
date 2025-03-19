@@ -26,25 +26,73 @@ class MediaService
         
         $aliases = $media->getMediaAliases();
         $alias = $options['alias'];
-        $alias = $aliases[$alias] ?? $aliases['original']; // fallback to the original if alias don't exist
+        $alias = $aliases[$alias] ?? null;
 
         switch ($storage['type'])
         {
-            case Type::DROPBOX->value: return $alias; break;
+            case StorageType::DROPBOX->value: return $alias; break;
 
             default: 
-                // if () {
 
-                // }
+                // Define the filetype
+                // --
 
-                dump([ $alias, file_exists(Path::join( $storage['destination'], $alias )) ]);
+                $mimeType = $media->getOriginalMimetype();
+                $fileType = "image";
+
+                if (preg_match('/^([^\/]+)/', $mimeType, $matches)) {
+                    $fileType = $matches[0];
+                }
+
+                if (!in_array($fileType, FileType::toArray())) {
+                    $fileType = "image";
+                }
+
+
+                // Find the Alias
+                // --
+
+                $fileExists = false;
+                $isFile = false;
+
+                if ($alias) {
+                    $fileExists = file_exists(Path::join( $storage['destination'], $alias ));
+                    $isFile = is_file(Path::join( $storage['destination'], $alias ));
+                }
+
+
+                // File exists
+                // --
+
+                if ($fileExists && $isFile) {
+                    return Path::join( $storage['public'], $alias );
+                }
+
+
+                $fallbacks = $storage['fallbacks'][$fileType];
+
+                foreach ($fallbacks as $fallback) {
+                    if ($fallback !== 'default') {
+                        $alias = $aliases[$fallback] ?? null;
+
+                        if ($alias == null) {
+                            continue;
+                        }
+                        
+                        $fileExists = file_exists(Path::join( $storage['destination'], $alias ));
+                        $isFile = is_file(Path::join( $storage['destination'], $alias ));
             
-            return file_exists(Path::join( $storage['destination'], $alias ))
-                ? Path::join( $storage['public'], $alias )
-                : Path::join( "/", $storage['defaults']['image'] )
-            ;
-        }
+                        if (!$fileExists || !$isFile) {
+                            continue;
+                        }
 
+                        return Path::join( $storage['public'], $alias );
+                    }
+                }
+
+                return Path::join( "/", $storage['defaults'][$fileType] );
+
+        }
     }
 
     public function url(array $options): string 

@@ -13,7 +13,6 @@ final class StorageManager
 {
     private array $clients = [];
     private array $config;
-    // private array $storages = [];
 
     public function __construct(
         #[Autowire(service: 'service_container')] 
@@ -51,15 +50,12 @@ final class StorageManager
         }
 
         array_walk($media['storages'], function($storage) use (&$media) {
-            // dump($key);
-            // dump($storage);
             match (Type::from($storage['type'])) {
                 Type::DROPBOX => $this->copy_Dropbox($storage),
                 Type::FTP     => $this->copy_FTP($storage),
                 Type::LOCAL   => $this->copy_Local($storage),
                 default       => null
             };
-
 
             switch ($storage['type']) {
                 case Type::DROPBOX->value:
